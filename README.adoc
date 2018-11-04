@@ -3109,28 +3109,6 @@ link:https://git.busybox.net/busybox/tree/modutils/insmod.c?h=1_29_3[Provided by
 ./run --eval-busybox 'insmod /hello.ko'
 ....
 
-=== modprobe
-
-If you are feeling fancy, you can also insert modules with:
-
-....
-modprobe hello
-....
-
-which insmods link:kernel_modules/hello.c[].
-
-`modprobe` searches for modules under:
-
-....
-ls /lib/modules/*/extra/
-....
-
-Kernel modules built from the Linux mainline tree with `CONFIG_SOME_MOD=m`, are automatically available with `modprobe`, e.g.:
-
-....
-modprobe dummy-irq irq=1
-....
-
 === myinsmod
 
 If you are feeling raw, you can insert and remove modules with our own minimal module inserter and remover!
@@ -3171,11 +3149,41 @@ ____
 
 Bibliography: https://stackoverflow.com/questions/5947286/how-to-load-linux-kernel-modules-from-c-code
 
+=== modprobe
+
+Implemented as a BusyBox applet by default: https://git.busybox.net/busybox/tree/modutils/modprobe.c?h=1_29_stable
+
+TODO: this currently only works for modules built with Buildroot, see: <<kernel_modules-package>>.
+
+We could likely make it work with link:build-modules[] without much effort by copying whatever Buildroot is doing.
+
+`modprobe` searches for modules under:
+
+....
+ls /lib/modules/<kernel_version>
+....
+
+This is the default install path for `make modules_install` in the Linux kernel, with root path given by `INSTALL_MOD_PATH`, and therefore canonical in that sense.
+
+Kernel modules built with `CONFIG_SOME_MOD=m` are installed in that location automatically available with `modprobe`, e.g.:
+
+....
+CONFIG_DUMMY_IRQ=m
+....
+
+allows us to do:
+
+....
+modprobe dummy-irq irq=1
+....
+
+See: <<dummy-irq>>.
+
 === kmod
 
-https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git
+The more "reference" kernel.org implementation of `lsmod`, `insmod`, `rmmod`, etc.: https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git
 
-Multi-call executable that implements: `lsmod`, `insmod`, `rmmod`, and other tools on desktop distros such as Ubuntu 16.04, where e.g.:
+Default implementation on desktop distros such as Ubuntu 16.04, where e.g.:
 
 ....
 ls -l /bin/lsmod
@@ -3199,11 +3207,7 @@ contains:
 ii  kmod                                        22-1ubuntu5                                         amd64        tools for managing Linux kernel modules
 ....
 
-BusyBox also implements its own version of those executables. There are some differences.
-
-Buildroot also has a kmod package, but we are not using it since BusyBox' version is good enough so far.
-
-This page will only describe features that differ from kmod to the BusyBox implementation.
+BusyBox also implements its own version of those executables, see e.g. <<modprobe>>. Here we will only describe features that differ from kmod to the BusyBox implementation.
 
 ==== module-init-tools
 
@@ -11249,6 +11253,8 @@ You won't be able to run those executables directly, but this is interesting if 
 
 ==== buildroot_packages directory
 
+Source: link:buildroot_packages/[]
+
 Every directory inside it is a Buildroot package.
 
 Those packages get automatically added to Buildroot's `BR2_EXTERNAL`, so all you need to do is to turn them on during build, e.g.:
@@ -11280,6 +11286,33 @@ You can force a rebuild with:
 Buildroot packages are convenient, but in general, if a package if very important to you, but not really mergeable back to Buildroot, you might want to just use a custom build script for it, and point it to the Buildroot toolchain, and then use `BR2_ROOTFS_OVERLAY`, much like we do for <<userland-directory>>.
 
 A custom build script can give you more flexibility: e.g. the package can be made work with other root filesystems more easily, have better <<9p>> support, and rebuild faster as it evades some Buildroot boilerplate.
+
+===== kernel_modules package
+
+TODO: `modprobe` currently fails with wrong module format because we need to boot the Buildroot Linux kernel for that to work. TODO expose that with a `./run --buildroot-kernel` option. Lazy now.
+
+Source: link:buildroot_packages/kernel_modules/[]
+
+An example of how to kernel modules in Buildroot.
+
+Described in detail at: https://stackoverflow.com/questions/40307328/how-to-add-a-linux-kernel-driver-module-as-a-buildroot-package/43874273#43874273
+
+....
+./build-buildroot \
+  --build-linux \
+  --config 'BR2_PACKAGE_KERNEL_MODULES=y'
+  -- \
+  kernel_modules-reconfigure \
+;
+....
+
+Then use the modules with:
+
+....
+modprobe hello
+....
+
+`--build-linux` is needed because the kernel modules built with Buildroot also need the kernel built with Buildroot.
 
 ==== patches directory
 

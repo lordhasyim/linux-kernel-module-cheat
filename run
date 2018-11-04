@@ -398,6 +398,10 @@ def get_argparse():
     init_group = parser.add_mutually_exclusive_group()
     kvm_group = parser.add_mutually_exclusive_group()
     parser.add_argument(
+        '--buildroot-kernel', default=defaults['buildroot_kernel'],
+        help='Boot with the Buildroot kernel instead of our custom built one. Mostly for sanity checks.'
+    )
+    parser.add_argument(
         '-c', '--cpus', default=defaults['cpus'], type=int,
         help='Number of guest CPUs to emulate. Default: %(default)s'
     )
